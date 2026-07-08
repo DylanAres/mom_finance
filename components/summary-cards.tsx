@@ -1,0 +1,76 @@
+'use client'
+
+import { Card } from '@/components/ui/card'
+import { formatCNY } from '@/lib/finance'
+
+type Props = {
+  total: number
+  principal: number
+  interest: number
+  isFuture: boolean
+  years: number
+}
+
+export function SummaryCards({
+  total,
+  principal,
+  interest,
+  isFuture,
+  years,
+}: Props) {
+  const cards = [
+    {
+      emoji: '💰',
+      label: isFuture ? `第 ${years} 年 · 预计总资产` : '当前总资产',
+      value: total,
+      highlight: true,
+    },
+    {
+      emoji: '📥',
+      label: '妈妈总投入',
+      value: principal,
+      highlight: false,
+    },
+    {
+      emoji: '📈',
+      label: isFuture ? '复利预计躺赚' : '复利已躺赚',
+      value: interest,
+      highlight: false,
+    },
+  ]
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-3">
+      {cards.map((c) => (
+        <Card
+          key={c.label}
+          className={[
+            'flex flex-col gap-3 p-6 transition-all duration-500',
+            c.highlight
+              ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+              : 'bg-card',
+          ].join(' ')}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-2xl" aria-hidden="true">
+              {c.emoji}
+            </span>
+            <span
+              className={[
+                'text-sm font-medium',
+                c.highlight
+                  ? 'text-primary-foreground/80'
+                  : 'text-muted-foreground',
+              ].join(' ')}
+            >
+              {c.label}
+            </span>
+          </div>
+          <p className="font-heading text-3xl font-bold tracking-tight tabular-nums text-balance">
+            {formatCNY(c.value)}
+          </p>
+        </Card>
+      ))}
+    </div>
+  )
+}
