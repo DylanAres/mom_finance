@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import { ForecastSlider } from '@/components/forecast-slider'
 import { GrowthLine, type GrowthPoint } from '@/components/growth-line'
+import { HistoryTable } from '@/components/history-table'
 import { RatioPie } from '@/components/ratio-pie'
 import { SummaryCards } from '@/components/summary-cards'
 import {
@@ -78,7 +79,7 @@ export default function Page() {
       <header className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-heading text-2xl font-bold tracking-tight sm:text-3xl text-balance">
-            妈妈的资金账本
+            资金账本
           </h1>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground">
             <span aria-hidden="true">🔒</span>
@@ -86,7 +87,7 @@ export default function Page() {
           </span>
         </div>
         <p className="text-pretty text-muted-foreground">
-          温馨记录每一笔往来，见证复利让时间替我们赚钱。
+          记录每笔资金往来，并按固定年化利率预测复利收益。
         </p>
       </header>
 
@@ -119,6 +120,8 @@ export default function Page() {
           </div>
 
           <ForecastSlider years={years} onChange={setYears} />
+
+          {summary && <HistoryTable rows={summary.rows} />}
 
           <p className="pb-2 text-center text-xs text-muted-foreground">
             预测基于「当前总资产 × (1 + 4%)^年数」的复利公式，仅供参考。

@@ -27,13 +27,13 @@ export function SummaryCards({
     },
     {
       emoji: '📥',
-      label: '妈妈总投入',
+      label: '累计本金',
       value: principal,
       highlight: false,
     },
     {
       emoji: '📈',
-      label: isFuture ? '复利预计躺赚' : '复利已躺赚',
+      label: isFuture ? '预计利息' : '累计利息',
       value: interest,
       highlight: false,
     },

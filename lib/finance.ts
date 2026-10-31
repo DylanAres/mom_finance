@@ -18,17 +18,21 @@ export const ANNUAL_RATE = 0.04
 // ============================================================
 //  数据类型
 // ============================================================
+export type LedgerChangeType = 'interest' | 'deposit' | 'withdraw'
+
 export type LedgerRow = {
   date: string
   balance: number
   note: string
-  principalSoFar: number // 截至这一行，妈妈累计投入的本金
+  principalSoFar: number // 截至这一行的累计本金
+  change: number // 当前行与上一行的余额差；第一行等于初始余额
+  type: LedgerChangeType
 }
 
 export type LedgerSummary = {
   rows: LedgerRow[]
   currentTotal: number // 当前总资产（最后一行余额）
-  principal: number // 累计本金（妈妈实际投入）
+  principal: number // 累计本金（实际投入）
   interest: number // 累计利息（总资产 - 本金）
 }
 
@@ -84,6 +88,11 @@ function toNumber(raw: string): number {
   return Number.isFinite(n) ? n : 0
 }
 
+// 备注含「利息」或「自动结算」都视为利息入账，不计入本金
+function isInterestNote(note: string): boolean {
+  return note.includes('利息') || note.includes('自动结算')
+}
+
 // ============================================================
 //  把表格原始文本 -> 结构化数据 + 汇总计算
 // ============================================================
@@ -97,23 +106,30 @@ export function parseLedger(csvText: string): LedgerSummary {
     balance: toNumber(cols[1] ?? ''),
     note: (cols[2] ?? '').trim(),
     principalSoFar: 0,
+    change: 0,
+    type: 'deposit',
   }))
 
   if (rows.length === 0) {
     return { rows: [], currentTotal: 0, principal: 0, interest: 0 }
   }
 
-  // 【累计本金】第一行是初始本金；之后每一行若备注不含「利息」，
-  // 就说明是妈妈手动存取款，用余额的变化量来增减本金。
-  let principal = rows[0].balance
-  rows[0].principalSoFar = principal
-  let prevBalance = rows[0].balance
-  for (let i = 1; i < rows.length; i++) {
+  // 【累计本金】每一行若备注不含「利息 / 自动结算」，就按余额变化增减本金。
+  // 第一行没有上一笔，变动额等于当时余额。
+  let principal = 0
+  let prevBalance = 0
+  for (let i = 0; i < rows.length; i++) {
     const change = rows[i].balance - prevBalance
-    if (!rows[i].note.includes('利息')) {
+    rows[i].change = change
+    rows[i].type = isInterestNote(rows[i].note)
+      ? 'interest'
+      : change >= 0
+        ? 'deposit'
+        : 'withdraw'
+    if (!isInterestNote(rows[i].note)) {
       principal += change // 存入为正、取出为负，自动加减
     }
-    rows[i].principalSoFar = principal // 记录这一行当时的累计本金
+    rows[i].principalSoFar = principal
     prevBalance = rows[i].balance
   }
 

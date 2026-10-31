@@ -91,7 +91,7 @@ export function GrowthLine({ data }: Props) {
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
-        橙色为本金、绿色为利息，绿色越厚说明复利赚得越多
+        橙色为本金、绿色为利息，绿色区域越大表示利息占比越高
       </p>
       <div className="h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">

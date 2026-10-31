@@ -15,8 +15,8 @@ const notoSerif = Noto_Serif_SC({
 })
 
 export const metadata: Metadata = {
-  title: '妈妈的资金账本 · 复利预测',
-  description: '温馨记录与妈妈之间的资金往来，并预测未来复利收益',
+  title: '资金账本 · 复利预测',
+  description: '记录资金往来，并按固定年化利率预测复利收益',
   generator: 'v0.app',
   icons: {
     icon: [
