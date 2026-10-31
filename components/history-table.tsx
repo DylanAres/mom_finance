@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   formatCNY,
+  formatLedgerDate,
   type LedgerChangeType,
   type LedgerRow,
 } from '@/lib/finance'
@@ -97,7 +98,7 @@ function HistoryRowMobile({ row }: { row: LedgerRow }) {
   return (
     <li className="flex flex-col gap-2 py-3.5">
       <div className="flex items-start justify-between gap-3">
-        <span className="text-sm tabular-nums">{row.date}</span>
+        <span className="text-sm tabular-nums">{formatLedgerDate(row.date)}</span>
         <span
           className={`text-right font-medium tabular-nums ${changeAmountClass(row)}`}
         >
@@ -202,7 +203,7 @@ export function HistoryTable({ rows }: Props) {
                       className="border-b border-border/60 last:border-b-0"
                     >
                       <td className="py-3.5 pr-4 align-top text-sm tabular-nums">
-                        {row.date}
+                        {formatLedgerDate(row.date)}
                       </td>
                       <td className="py-3.5 pr-4 align-top">
                         <TypeCell row={row} meta={meta} />

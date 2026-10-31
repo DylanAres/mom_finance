@@ -148,27 +148,110 @@ export function projectTotal(currentTotal: number, years: number): number {
   return currentTotal * Math.pow(1 + ANNUAL_RATE, years)
 }
 
+export const CHINA_TIME_ZONE = 'Asia/Shanghai'
+const CHINA_OFFSET_MS = 8 * 60 * 60 * 1000
+
+export function chinaDateParts(ts: number = Date.now()): {
+  year: number
+  month: number
+  day: number
+} {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: CHINA_TIME_ZONE,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(new Date(ts))
+  const num = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((p) => p.type === type)?.value)
+  return { year: num('year'), month: num('month'), day: num('day') }
+}
+
+/** 北京时间当天 0 点 */
+export function chinaStartOfDay(year: number, month: number, day: number): number {
+  return Date.UTC(year, month - 1, day) - CHINA_OFFSET_MS
+}
+
+export function todayInChina(): {
+  ts: number
+  year: number
+  month: number
+  day: number
+} {
+  const parts = chinaDateParts(Date.now())
+  return { ...parts, ts: chinaStartOfDay(parts.year, parts.month, parts.day) }
+}
+
 export function parseLedgerDate(date: string): number | null {
   const normalized = date.trim().replace(/[./]/g, '-')
+  const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)
+  if (match) {
+    return chinaStartOfDay(Number(match[1]), Number(match[2]), Number(match[3]))
+  }
   const ts = Date.parse(normalized)
   return Number.isFinite(ts) ? ts : null
 }
 
 export function addYears(ts: number, years: number): number {
-  const next = new Date(ts)
-  next.setFullYear(next.getFullYear() + years)
-  return next.getTime()
+  const p = chinaDateParts(ts)
+  return chinaStartOfDay(p.year + years, p.month, p.day)
 }
 
-export function formatChartDate(ts: number, mode: 'full' | 'month' | 'year' | 'today'): string {
+export function addMonths(ts: number, months: number): number {
+  const p = chinaDateParts(ts)
+  const total = p.month - 1 + months
+  const year = p.year + Math.floor(total / 12)
+  const month = ((total % 12) + 12) % 12 + 1
+  return chinaStartOfDay(year, month, p.day)
+}
+
+export function startOfLocalDay(ts: number): number {
+  const { year, month, day } = chinaDateParts(ts)
+  return chinaStartOfDay(year, month, day)
+}
+
+/** month is calendar 1–12（北京时间） */
+export function startOfMonth(year: number, month: number): number {
+  return chinaStartOfDay(year, month, 1)
+}
+
+/** month is calendar 1–12（北京时间） */
+export function endOfMonth(year: number, month: number): number {
+  const nextMonth = month === 12 ? 1 : month + 1
+  const nextYear = month === 12 ? year + 1 : year
+  return chinaStartOfDay(nextYear, nextMonth, 1) - 1
+}
+
+/** month is calendar 1–12 */
+export function formatYearMonth(year: number, month: number): string {
+  return `${year}年${month}月`
+}
+
+/** Both months are calendar 1–12 */
+export function calendarMonthsBetween(
+  fromYear: number,
+  fromMonth: number,
+  toYear: number,
+  toMonth: number,
+): number {
+  return (toYear - fromYear) * 12 + (toMonth - fromMonth)
+}
+
+export function formatChartDate(
+  ts: number,
+  mode: 'full' | 'month' | 'year' | 'today' | 'day',
+): string {
   if (mode === 'today') return '今天'
-  const d = new Date(ts)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  if (mode === 'year') return `${y}`
-  if (mode === 'month') return `${y}-${m}`
-  return `${y}-${m}-${day}`
+  const { year, month, day } = chinaDateParts(ts)
+  if (mode === 'year') return `${year}年`
+  if (mode === 'month') return `${year}年${month}月`
+  if (mode === 'day') return `${month}月${day}日`
+  return `${year}年${month}月${day}日`
+}
+
+export function formatLedgerDate(date: string): string {
+  const ts = parseLedgerDate(date)
+  return ts == null ? date : formatChartDate(ts, 'full')
 }
 
 // 货币格式化：¥ + 千分位 + 两位小数

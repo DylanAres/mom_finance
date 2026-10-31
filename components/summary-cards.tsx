@@ -7,21 +7,30 @@ type Props = {
   total: number
   principal: number
   interest: number
-  isFuture: boolean
-  years: number
+  timeMode: 'today' | 'future' | 'past'
+  horizonLabel: string
 }
 
 export function SummaryCards({
   total,
   principal,
   interest,
-  isFuture,
-  years,
+  timeMode,
+  horizonLabel,
 }: Props) {
+  const totalLabel =
+    timeMode === 'today'
+      ? '当前总资产'
+      : timeMode === 'future'
+        ? `${horizonLabel} · 预计总资产`
+        : `${horizonLabel} · 当时总资产`
+  const interestLabel =
+    timeMode === 'future' ? '预计利息' : timeMode === 'past' ? '当时利息' : '累计利息'
+
   const cards = [
     {
       emoji: '💰',
-      label: isFuture ? `第 ${years} 年 · 预计总资产` : '当前总资产',
+      label: totalLabel,
       value: total,
       highlight: true,
     },
@@ -33,7 +42,7 @@ export function SummaryCards({
     },
     {
       emoji: '📈',
-      label: isFuture ? '预计利息' : '累计利息',
+      label: interestLabel,
       value: interest,
       highlight: false,
     },

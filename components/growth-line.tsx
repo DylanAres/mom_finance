@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 import { Card } from '@/components/ui/card'
-import { formatCNY, formatChartDate } from '@/lib/finance'
+import { chinaDateParts, formatCNY, formatChartDate } from '@/lib/finance'
 import {
   Area,
   AreaChart,
@@ -34,6 +34,62 @@ const SERIES = [
 
 const DAY = 24 * 60 * 60 * 1000
 
+type AxisTickProps = {
+  x?: number
+  y?: number
+  payload?: { value: number }
+  todayTs?: number
+  hasFuture?: boolean
+  lastTs?: number
+}
+
+function AxisTick({
+  x = 0,
+  y = 0,
+  payload,
+  todayTs,
+  hasFuture,
+  lastTs,
+}: AxisTickProps) {
+  const ts = payload?.value
+  if (ts == null) return null
+
+  const fill = 'var(--color-muted-foreground)'
+  const isToday = todayTs != null && Math.abs(ts - todayTs) < DAY
+
+  if (isToday) {
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text dy={12} textAnchor="middle" fontSize={11} fill={fill}>
+          今天
+        </text>
+        <text dy={26} textAnchor="middle" fontSize={10} fill={fill}>
+          {formatChartDate(ts, 'day')}
+        </text>
+      </g>
+    )
+  }
+
+  let text: string
+  if (hasFuture && todayTs != null && ts > todayTs) {
+    const d = chinaDateParts(ts)
+    if (d.month === 1 && d.day === 1) {
+      text = formatChartDate(ts, 'year')
+    } else {
+      const spanYears = ((lastTs ?? ts) - todayTs) / (365.25 * DAY)
+      text = formatChartDate(ts, spanYears < 2 ? 'month' : 'year')
+    }
+  } else {
+    text = formatChartDate(ts, hasFuture ? 'month' : 'day')
+  }
+
+  return (
+    <text x={x} y={y} dy={12} textAnchor="middle" fontSize={11} fill={fill}>
+      {text}
+    </text>
+  )
+}
+
 function pickTicks(data: GrowthPoint[]): number[] {
   if (data.length === 0) return []
   const history = data.filter((d) => !d.future)
@@ -51,12 +107,18 @@ function pickTicks(data: GrowthPoint[]): number[] {
   }
 
   const step = future.length <= 6 ? 1 : future.length <= 15 ? 2 : 5
+  const lastTs = data[data.length - 1].ts
+  const span = lastTs - first
   const futureTicks = future
-    .filter((_, i) => (i + 1) % step === 0 || i === future.length - 1)
+    .filter((_, i) => i === 0 || (i + 1) % step === 0 || i === future.length - 1)
     .map((d) => d.ts)
+    .filter((ts) => {
+      if (ts === lastTs) return true
+      // 跨度很大时，明年 1 月会和「今天」挤成一团
+      return span <= 0 || (ts - lastHistory) / span >= 0.1
+    })
 
   // 预测期较长时，历史只占横轴很小一段，再标起点日期会和「今天」挤在一起
-  const span = data[data.length - 1].ts - first
   if (span > 0 && (lastHistory - first) / span < 0.12) {
     return [lastHistory, ...futureTicks]
   }
@@ -135,7 +197,7 @@ export function GrowthLine({ data }: Props) {
       </p>
       <div className="h-64 w-full overflow-visible">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 28, left: 8, bottom: 4 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 36, left: 8, bottom: 18 }}>
             <defs>
               <linearGradient id="fillPrincipal" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.5} />
@@ -155,23 +217,21 @@ export function GrowthLine({ data }: Props) {
               dataKey="ts"
               type="number"
               scale="time"
-              domain={['dataMin', 'dataMax']}
+              domain={[data[0]?.ts ?? 'dataMin', data[data.length - 1]?.ts ?? 'dataMax']}
               ticks={ticks}
               interval={0}
-              tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
+              tick={(props) => (
+                <AxisTick
+                  {...props}
+                  todayTs={todayTs}
+                  hasFuture={hasFuture}
+                  lastTs={data[data.length - 1]?.ts}
+                />
+              )}
               tickLine={false}
               tickMargin={8}
               axisLine={{ stroke: 'var(--color-border)' }}
               padding={{ left: 0, right: 0 }}
-              tickFormatter={(ts: number) => {
-                if (todayTs != null && Math.abs(ts - todayTs) < DAY) {
-                  return hasFuture ? formatChartDate(ts, 'today') : formatChartDate(ts, 'full')
-                }
-                if (hasFuture && todayTs != null && ts > todayTs) {
-                  return formatChartDate(ts, 'year')
-                }
-                return formatChartDate(ts, hasFuture ? 'month' : 'full')
-              }}
             />
             <YAxis
               tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}

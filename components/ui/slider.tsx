@@ -8,6 +8,7 @@ function Slider({
   value,
   min = 0,
   max = 100,
+  thumbAlignment = "edge",
   ...props
 }: SliderPrimitive.Root.Props) {
   const _values = Array.isArray(value)
