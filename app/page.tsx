@@ -9,7 +9,9 @@ import { RatioPie } from '@/components/ratio-pie'
 import { SummaryCards } from '@/components/summary-cards'
 import {
   ANNUAL_RATE,
+  addYears,
   type LedgerSummary,
+  parseLedgerDate,
   projectTotal,
 } from '@/lib/finance'
 
@@ -43,18 +45,28 @@ export default function Page() {
     const principal = summary.principal // 未来不再新增本金，保持不变
     const interest = total - principal
 
-    // 折线图数据：历史记录 + 未来逐年预测，区分本金 / 利息 / 总额
-    const history: GrowthPoint[] = summary.rows.map((r) => ({
-      label: r.date,
-      principal: r.principalSoFar,
-      interest: Math.max(0, r.balance - r.principalSoFar),
-      total: r.balance,
-    }))
+    // 折线图数据：历史记录 + 未来逐年预测，按真实时间戳落点
+    let lastTs = 0
+    const history: GrowthPoint[] = summary.rows.map((r, i) => {
+      const parsed = parseLedgerDate(r.date)
+      let ts = parsed ?? lastTs + 24 * 60 * 60 * 1000
+      if (i > 0 && ts <= lastTs) ts = lastTs + 60 * 1000
+      lastTs = ts
+      return {
+        label: r.date,
+        ts,
+        principal: r.principalSoFar,
+        interest: Math.max(0, r.balance - r.principalSoFar),
+        total: r.balance,
+      }
+    })
+    const originTs = history[history.length - 1]?.ts ?? Date.now()
     const future: GrowthPoint[] = []
     for (let t = 1; t <= safeYears; t++) {
       const futureTotal = projectTotal(summary.currentTotal, t)
       future.push({
         label: `第${t}年`,
+        ts: addYears(originTs, t),
         principal: summary.principal, // 未来不再新增本金，保持不变
         interest: Math.max(0, futureTotal - summary.principal),
         total: futureTotal,

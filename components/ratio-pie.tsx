@@ -17,12 +17,13 @@ export function RatioPie({ principal, interest }: Props) {
     { name: '复利利息', value: Math.max(interest, 0) },
   ]
   const sum = data[0].value + data[1].value
+  const interestPct = sum > 0 ? (data[1].value / sum) * 100 : 0
 
   return (
     <Card className="flex flex-col gap-2 p-6">
       <h2 className="font-heading text-lg font-semibold">本息占比</h2>
       <p className="text-sm text-muted-foreground">本金与利息在总资产中的比例</p>
-      <div className="h-64 w-full">
+      <div className="relative h-64 w-full">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -55,6 +56,12 @@ export function RatioPie({ principal, interest }: Props) {
             />
           </PieChart>
         </ResponsiveContainer>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xs text-muted-foreground">利息占比</span>
+          <span className="font-heading text-2xl font-bold tabular-nums">
+            {interestPct.toFixed(1)}%
+          </span>
+        </div>
       </div>
       <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
         {data.map((entry, i) => (

@@ -1,11 +1,13 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Card } from '@/components/ui/card'
-import { formatCNY } from '@/lib/finance'
+import { formatCNY, formatChartDate } from '@/lib/finance'
 import {
   Area,
   AreaChart,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,6 +16,7 @@ import {
 
 export type GrowthPoint = {
   label: string
+  ts: number
   principal: number // 本金
   interest: number // 利息
   total: number // 总额（本金 + 利息）
@@ -29,20 +32,49 @@ const SERIES = [
   { key: 'interest', name: '利息', color: 'var(--color-chart-2)' },
 ] as const
 
+const DAY = 24 * 60 * 60 * 1000
+
+function pickTicks(data: GrowthPoint[]): number[] {
+  if (data.length === 0) return []
+  const history = data.filter((d) => !d.future)
+  const future = data.filter((d) => d.future)
+  const first = data[0].ts
+  const lastHistory = history[history.length - 1]?.ts ?? first
+
+  if (future.length === 0) {
+    if (history.length <= 3) return history.map((d) => d.ts)
+    return [
+      history[0].ts,
+      history[Math.floor((history.length - 1) / 2)].ts,
+      lastHistory,
+    ]
+  }
+
+  const step = future.length <= 6 ? 1 : future.length <= 15 ? 2 : 5
+  const futureTicks = future
+    .filter((_, i) => (i + 1) % step === 0 || i === future.length - 1)
+    .map((d) => d.ts)
+
+  // 预测期较长时，历史只占横轴很小一段，再标起点日期会和「今天」挤在一起
+  const span = data[data.length - 1].ts - first
+  if (span > 0 && (lastHistory - first) / span < 0.12) {
+    return [lastHistory, ...futureTicks]
+  }
+  return [first, lastHistory, ...futureTicks]
+}
+
 function ChartTooltip({
   active,
   payload,
-  label,
 }: {
   active?: boolean
   payload?: Array<{ payload: GrowthPoint }>
-  label?: string
 }) {
   if (!active || !payload || payload.length === 0) return null
   const p = payload[0].payload
   return (
     <div className="rounded-xl border border-border bg-popover px-3 py-2 text-popover-foreground shadow-md">
-      <p className="mb-1 text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mb-1 text-xs font-medium text-muted-foreground">{p.label}</p>
       <ul className="flex flex-col gap-0.5 text-sm tabular-nums">
         <li className="flex items-center justify-between gap-4">
           <span className="flex items-center gap-1.5">
@@ -74,6 +106,14 @@ function ChartTooltip({
 }
 
 export function GrowthLine({ data }: Props) {
+  const todayTs = useMemo(() => {
+    const history = data.filter((d) => !d.future)
+    return history[history.length - 1]?.ts
+  }, [data])
+
+  const ticks = useMemo(() => pickTicks(data), [data])
+  const hasFuture = data.some((d) => d.future)
+
   return (
     <Card className="flex flex-col gap-2 p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -91,11 +131,11 @@ export function GrowthLine({ data }: Props) {
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
-        橙色为本金、绿色为利息，绿色区域越大表示利息占比越高
+        横轴按实际时间比例；橙色为本金，绿色为利息
       </p>
-      <div className="h-64 w-full">
+      <div className="h-64 w-full overflow-visible">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 8, left: 8, bottom: 0 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 28, left: 8, bottom: 4 }}>
             <defs>
               <linearGradient id="fillPrincipal" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="var(--color-chart-1)" stopOpacity={0.5} />
@@ -112,11 +152,26 @@ export function GrowthLine({ data }: Props) {
               vertical={false}
             />
             <XAxis
-              dataKey="label"
+              dataKey="ts"
+              type="number"
+              scale="time"
+              domain={['dataMin', 'dataMax']}
+              ticks={ticks}
+              interval={0}
               tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
               tickLine={false}
+              tickMargin={8}
               axisLine={{ stroke: 'var(--color-border)' }}
-              minTickGap={16}
+              padding={{ left: 0, right: 0 }}
+              tickFormatter={(ts: number) => {
+                if (todayTs != null && Math.abs(ts - todayTs) < DAY) {
+                  return hasFuture ? formatChartDate(ts, 'today') : formatChartDate(ts, 'full')
+                }
+                if (hasFuture && todayTs != null && ts > todayTs) {
+                  return formatChartDate(ts, 'year')
+                }
+                return formatChartDate(ts, hasFuture ? 'month' : 'full')
+              }}
             />
             <YAxis
               tick={{ fontSize: 11, fill: 'var(--color-muted-foreground)' }}
@@ -128,6 +183,14 @@ export function GrowthLine({ data }: Props) {
               }
             />
             <Tooltip content={<ChartTooltip />} />
+            {hasFuture && todayTs != null ? (
+              <ReferenceLine
+                x={todayTs}
+                stroke="var(--color-muted-foreground)"
+                strokeDasharray="4 4"
+                strokeOpacity={0.7}
+              />
+            ) : null}
             <Area
               type="monotone"
               dataKey="principal"

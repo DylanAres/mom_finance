@@ -148,6 +148,29 @@ export function projectTotal(currentTotal: number, years: number): number {
   return currentTotal * Math.pow(1 + ANNUAL_RATE, years)
 }
 
+export function parseLedgerDate(date: string): number | null {
+  const normalized = date.trim().replace(/[./]/g, '-')
+  const ts = Date.parse(normalized)
+  return Number.isFinite(ts) ? ts : null
+}
+
+export function addYears(ts: number, years: number): number {
+  const next = new Date(ts)
+  next.setFullYear(next.getFullYear() + years)
+  return next.getTime()
+}
+
+export function formatChartDate(ts: number, mode: 'full' | 'month' | 'year' | 'today'): string {
+  if (mode === 'today') return '今天'
+  const d = new Date(ts)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  if (mode === 'year') return `${y}`
+  if (mode === 'month') return `${y}-${m}`
+  return `${y}-${m}-${day}`
+}
+
 // 货币格式化：¥ + 千分位 + 两位小数
 export function formatCNY(value: number): string {
   return (
